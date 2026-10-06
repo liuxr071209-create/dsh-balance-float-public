@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Audio reward">
+  <rect x="4" y="10" width="56" height="44" rx="10" fill="#16a34a"/>
+  <path d="M26 41V25l16-4v16" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="22" cy="42" r="5" fill="#ffffff"/>
+  <circle cx="38" cy="38" r="5" fill="#ffffff"/>
+  <path d="M48 20c2.6 1.6 4 3.6 4 6s-1.4 4.4-4 6" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" opacity="0.85"/>
+</svg>

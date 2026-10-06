@@ -1,0 +1,23 @@
+# One Host row. The browser half is discovered by itself: package.json declares
+# `dsh.client`, so DSH picks up ./client.js for the Web UI under the same id.
+#
+# Every value below is optional; deleting the `config` block restores defaults.
+- insert:
+    - id: dsh-balance-float
+      name: dsh-balance-float
+      config:
+        # Credential reference (a POSIX identifier) holding the DeepSeek API key.
+        # Change it to read the key from a different environment variable.
+        apiKeyRef: DEEPSEEK_API_KEY
+        # Account balance poll interval, clamped to 15000..3600000.
+        pollMs: 60000
+        # Per-request timeout for the balance call.
+        timeoutMs: 10000
+        # Minutes east of UTC for the billing schedule. Asia/Shanghai has no DST,
+        # so a fixed offset is exact.
+        utcOffsetMinutes: 480
+        # Peak-rate windows as [startMinute, endMinute) from local midnight.
+        # Default: Beijing time weekdays 09:00-12:00 and 14:00-18:00.
+        peakWindows:
+          - [540, 720]
+          - [840, 1080]

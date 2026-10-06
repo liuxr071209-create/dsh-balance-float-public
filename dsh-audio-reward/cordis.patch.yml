@@ -1,0 +1,33 @@
+# One Host row. The browser half is discovered by itself: package.json declares
+# `dsh.client`, so DSH picks up ./client.js for the Web UI under the same id.
+#
+# Every value below is optional; deleting the `config` block restores defaults.
+- insert:
+    - id: dsh-audio-reward
+      name: dsh-audio-reward
+      config:
+        # Directory scanned for audio. Files are streamed from here; nothing is
+        # copied into the package.
+        audioDir: D:/音频
+        # Only these extensions are listed and served.
+        extensions:
+          - .mp3
+          - .wav
+          - .ogg
+          - .opus
+          - .m4a
+          - .aac
+          - .flac
+        # Trailing window that collapses a burst of completed turns into one
+        # cue. One user-visible task can close several turns (the agent's own
+        # plus every subagent it spawned); raise this if a task still fires
+        # more than once, lower it if a fast follow-up feels swallowed.
+        coalesceMs: 600
+        # Cues retained for the browser to catch up on.
+        maxEvents: 64
+        # Display labels. Without an entry the file's own name is shown with
+        # bracketed provenance noise stripped. Quoted because these keys carry
+        # brackets and full-width punctuation.
+        labels:
+          'ciallo.mp3': ciallo
+          '你干嘛哎哟坤坤_耳聆网_[声音ID：39642].mp3': 爱坤

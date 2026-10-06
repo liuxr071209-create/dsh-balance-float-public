@@ -1,0 +1,12 @@
+# Keep the repository byte-identical across platforms. These files are read by
+# Node and by the browser, and CRLF churn would show up as whole-file diffs.
+* text=auto
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.svg text eol=lf
+LICENSE text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf

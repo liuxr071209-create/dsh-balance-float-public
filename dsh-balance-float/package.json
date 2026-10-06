@@ -1,0 +1,42 @@
+{
+  "name": "dsh-balance-float",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DeepSeek 账户余额与峰谷计费悬浮窗：可拖动、可折叠，留出皮肤与动图扩展位。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  },
+  "icon": "./icon.svg",
+  "scripts": {
+    "test": "node --test",
+    "verify": "node scripts/verify-env.mjs",
+    "probe": "node scripts/probe-bundle.mjs"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "icon.svg",
+    "test",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT"
+}

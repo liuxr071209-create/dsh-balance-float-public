@@ -1,0 +1,41 @@
+{
+  "name": "dsh-audio-reward",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent 完成一轮后播放一段音频；音频选择器并入余额浮窗。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "dsh-balance-float"
+      ]
+    }
+  },
+  "icon": "./icon.svg",
+  "scripts": {
+    "test": "node --test",
+    "verify": "node scripts/verify-env.mjs"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "icon.svg",
+    "test",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,22 @@
+# Ignore everything, then re-include exactly what this repository publishes.
+#
+# The working tree happens to be a larger scratch workspace that also holds
+# unrelated personal files next to these two packages. A whitelist is the only
+# safe shape here: a careless `git add -A` then cannot publish anything that is
+# not named below, and `git status` stays quiet about the rest.
+/*
+!/dsh-balance-float/
+!/dsh-audio-reward/
+!/tools/
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+
+# Nested safety nets: these are unanchored, so they apply inside each package
+# too, should a checkout ever grow them.
+node_modules/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
