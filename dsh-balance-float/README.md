@@ -16,6 +16,8 @@ DeepSeek Harness Web GUI 的一个插件：在界面右上角显示一个**可�
 └───────────────────────────┘
 ```
 
+> **安装、配置、排错请看[仓库根 README](../README.md)。** 本文件是这个插件的参考手册：操作手势、配置项、皮肤与扩展 API。
+
 ## 操作
 
 | 手势 | 效果 |
@@ -33,9 +35,9 @@ DeepSeek Harness Web GUI 的一个插件：在界面右上角显示一个**可�
 
 | 文件 | 作用 |
 |---|---|
-| `index.js` | Host 半边：解析 API Key、定时拉取余额、注册同源 JSON 路由、发布计费规则 |
+| `index.js` | Host 半边：解析凭据、定时拉取余额、注册同源 JSON 路由、发布计费规则 |
 | `client.js` | 浏览器半边：注册进 `shell.overlay`，负责渲染、拖动、折叠、时钟判断 |
-| `cordis.patch.yml` | bundle patch：插入一行 Host 插件，并给出可调配置 |
+| `cordis.patch.yml` | bundle patch：插入一行 Host 插件，并承载全部可调配置 |
 | `test/` | 23 个单元测试（无需网络、无需凭据） |
 | `scripts/verify-env.mjs` | 环境验证：清单形状、patch YAML、真实余额接口、当前峰谷 |
 | `scripts/probe-bundle.mjs` | 探活：问正在运行的 DSH 是否已备好浏览器半边 |
@@ -46,27 +48,14 @@ DeepSeek Harness Web GUI 的一个插件：在界面右上角显示一个**可�
 
 ## 安装
 
-Desktop 版 DSH 的 `desktop` profile 由应用独占，需要用应用自带的 CLI（下称 `<dsh-desktop>`，怎么找见[仓库根 README](../README.md#0-先找到-dsh-命令)）：
+见[仓库根 README 的安装一节](../README.md#安装)。简要版：
 
 ```powershell
-& '<dsh-desktop>' plugin --profile desktop add '<repo>/dsh-balance-float'
+dsh plugin --profile web add '<clone>/dsh-balance-float'                 # Web 版
+& '<dsh-desktop>' plugin --profile desktop add '<clone>/dsh-balance-float'   # Desktop 版
 ```
 
-普通 `dsh web` 装配（`web` profile）用：
-
-```powershell
-dsh plugin --profile web add '<repo>/dsh-balance-float'
-```
-
-`<repo>` 是本仓库的 clone 目录。路径必须是**绝对路径**：裸目录名会被当作 npm 包名去 registry 拉取。`#` 在 PowerShell 里是注释符，含 `#` 的 spec 记得加引号。
-
-新增插件包后需要**刷新页面**才能看到浮窗（Host 半边会热装载；不放心就重启 DSH）；之后改本插件的 JS 源码，重新加载页面即可。
-
-卸载：
-
-```powershell
-& '<dsh-desktop>' plugin --profile desktop remove dsh-balance-float
-```
+装完**刷新页面**。还需要在 DSH 里配好 DeepSeek API Key（详见根 README 第 3 步）—— 没配也能装，浮窗会显示「未配置 API Key」。
 
 ## 配置
 

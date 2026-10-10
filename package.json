@@ -1,0 +1,13 @@
+{
+  "name": "dsh-plugins",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DeepSeek Harness 插件合集：余额/峰谷浮窗 与 完成音效。",
+  "type": "module",
+  "scripts": {
+    "test": "npm --prefix dsh-balance-float test && npm --prefix dsh-audio-reward test",
+    "verify": "node dsh-balance-float/scripts/verify-env.mjs && node dsh-audio-reward/scripts/verify-env.mjs",
+    "probe": "node dsh-balance-float/scripts/probe-bundle.mjs"
+  },
+  "license": "MIT"
+}

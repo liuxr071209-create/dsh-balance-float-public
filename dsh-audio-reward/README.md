@@ -27,15 +27,16 @@ DeepSeek Harness 的一个插件：**agent 完成一轮任务后播放一段音�
 
 ## 安装
 
-Desktop 版 DSH 的 `desktop` profile 由应用独占，用应用自带的 CLI（下称 `<dsh-desktop>`，怎么找见[仓库根 README](../README.md#0-先找到-dsh-命令)）：
+见[仓库根 README 的安装一节](../README.md#安装)。简要版：
 
 ```powershell
-& '<dsh-desktop>' plugin --profile desktop add '<repo>/dsh-audio-reward'
+dsh plugin --profile web add '<clone>/dsh-audio-reward'                    # Web 版
+& '<dsh-desktop>' plugin --profile desktop add '<clone>/dsh-audio-reward'   # Desktop 版
 ```
 
-普通 `dsh web` 装配用 `dsh plugin --profile web add '<repo>/dsh-audio-reward'`（`<repo>` 是本仓库的 clone 目录）。路径要写**绝对路径**；新增插件包后**刷新页面**（Host 半边会热装载；不放心就重启 DSH）。
+装完**刷新页面**。
 
-**依赖**：这个插件把选择器注册进余额浮窗，所以要同时装 [dsh-balance-float](../dsh-balance-float)。没装也能跑（音频照样播），只是没有界面可点，只能靠 `localStorage` 或控制台 API 设置。
+**依赖**：这个插件把选择器注册进余额浮窗，所以要同时装 [dsh-balance-float](../dsh-balance-float)。没装也能跑（音频照样播），只是没有界面可点，只能靠 `localStorage` 或控制台 API 设置。另外记得把 `audioDir` 改成你自己的目录。
 
 ## 配置
 
@@ -43,11 +44,11 @@ Desktop 版 DSH 的 `desktop` profile 由应用独占，用应用自带的 CLI�
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `audioDir` | `D:/音频` | 扫描哪个目录。文件是**流式读**的，不会拷进包里。**这是作者机器上的路径，别人用请改成自己的目录** |
+| `audioDir` | `D:/音频` | 扫描哪个目录。文件是**流式读**的，不会拷进包里。**别人用请改成自己的目录** |
 | `extensions` | `.mp3 .wav .ogg .opus .m4a .aac .flac` | 只有列出的扩展名会被列出和提供 |
 | `coalesceMs` | `600` | 尾随合并窗口：一次任务可能关掉好几个 turn（agent 自己的 + 每个子 agent 的），窗口内只发一个 cue。**任务仍响多次就调大，连续两次任务被吞掉就调小，设 `0` 表示不合并** |
 | `maxEvents` | `64` | 保留多少个 cue 供浏览器追赶 |
-| `labels` | `ciallo.mp3: ciallo`、`你干嘛哎哟坤坤_耳聆网_[声音ID：39642].mp3: 爱坤` | 下拉里显示的名字。没配的名字会自动去掉 `_[…]` 这类来源噪音 |
+| `labels` | 见 `cordis.patch.yml` 内注释 | 下拉里显示的名字。没配的名字会自动去掉 `_[…]` 这类来源噪音 |
 
 换音频只需把文件丢进 `audioDir`，浏览器每 5 分钟重读一次目录；想立刻生效在控制台跑 `__DSH_AUDIO_REWARD__.reload()`，或刷新页面。
 

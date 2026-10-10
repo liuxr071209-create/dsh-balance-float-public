@@ -8,10 +8,13 @@
 !/dsh-balance-float/
 !/dsh-audio-reward/
 !/tools/
+!/docs/
 !/.gitignore
 !/.gitattributes
 !/README.md
+!/README.en.md
 !/LICENSE
+!/package.json
 
 # Nested safety nets: these are unanchored, so they apply inside each package
 # too, should a checkout ever grow them.
