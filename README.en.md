@@ -33,29 +33,32 @@ Neither package has third-party dependencies, so installing needs no network acc
 
 ## Install
 
+**One line from GitHub** (needs **pnpm ≥ 9** for the `#path:` subdirectory syntax) — no clone required:
+
 ```powershell
-git clone https://github.com/<owner>/dsh-plugins.git
+dsh plugin --profile web add 'github:liuxr071209-create/dsh-balance-float-public#path:/dsh-balance-float'
+dsh plugin --profile web add 'github:liuxr071209-create/dsh-balance-float-public#path:/dsh-audio-reward'
 ```
 
-**Web DSH** (`dsh` on your PATH):
+**Or clone and install from disk** (better on a slow network, required to modify the code, or with pnpm < 9):
 
 ```powershell
+git clone https://github.com/liuxr071209-create/dsh-balance-float-public.git
 dsh plugin --profile web add '<clone>/dsh-balance-float'
 dsh plugin --profile web add '<clone>/dsh-audio-reward'
 ```
 
-**DSH Desktop for Windows** (`desktop` is owned by the app):
+**DSH Desktop for Windows**: the `desktop` profile is owned by the app, so use its bundled CLI — replace `dsh` with `& '<dsh-desktop>'` and `--profile web` with `--profile desktop`:
 
 ```powershell
-& '<dsh-desktop>' plugin --profile desktop add '<clone>/dsh-balance-float'
-& '<dsh-desktop>' plugin --profile desktop add '<clone>/dsh-audio-reward'
+& '<dsh-desktop>' plugin --profile desktop add 'github:liuxr071209-create/dsh-balance-float-public#path:/dsh-balance-float'
 ```
 
 `<clone>` is the absolute path of your checkout. `<dsh-desktop>` is the bundled CLI, e.g. `<DSH Desktop install dir>\resources\runtime\cli\bin\dsh.cmd`.
 
 Two things to get right:
 
-- **Use an absolute path.** A bare `dsh-balance-float` is treated as an npm package name and 404s; a relative path resolves against the directory you ran the command from, not the repository.
+- **Use an absolute path or a `github:` spec.** A bare `dsh-balance-float` is treated as an npm package name and 404s; a relative path resolves against the directory you ran the command from, not the repository.
 - After installing, **refresh the DSH page** — the Host half hot-loads, but the browser half is only fetched on page load.
 
 Then set your API key (Settings → Account in DSH, or the `refs` section of `%USERPROFILE%\.dsh\.credentials.yaml`, or the `DEEPSEEK_API_KEY` environment variable). The key is never written to logs or HTTP responses, and the browser never sees it.

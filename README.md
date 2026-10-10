@@ -30,7 +30,7 @@
 |---|---|
 | DSH | **0.2.0-rc.2** 或同代版本（开发与实测版本）。不同 rc 之间插件接口会变；升级 DSH 后若插件不工作，见 [docs/plugin-contract.md](docs/plugin-contract.md) |
 | 装插件的方式 | 能执行 `dsh plugin --profile <名字> add <路径>`。Desktop 版要用它自带的 CLI，见下 |
-| **余额插件额外需要** | DSH 里配好 DeepSeek API Key（[第 3 步](#3-配好-api-key只有余额插件需要)）。不配也能装，浮窗会显示「未配置 API Key」 |
+| **余额插件额外需要** | DSH 里配好 DeepSeek API Key（[下文](#配好-api-key只有余额插件需要)）。不配也能装，浮窗会显示「未配置 API Key」 |
 | **音频插件额外需要** | 一个放音频文件的目录，路径写进配置（默认 `D:/音频`，**别人用请改成自己的**） |
 
 两个插件都**没有任何第三方依赖**（Host 半边只用 Node 内置模块，浏览器半边只用页面自带的 React），所以安装过程不需要联网。
@@ -39,38 +39,53 @@
 
 ## 安装
 
-### 1. 拿到代码
+### 方式 A：一行从 GitHub 装（不用 clone）
+
+需要 **pnpm ≥ 9**（子目录语法从 pnpm 9 开始支持）：
 
 ```powershell
-git clone https://github.com/<owner>/dsh-plugins.git
-cd dsh-plugins
+dsh plugin --profile web add 'github:liuxr071209-create/dsh-balance-float-public#path:/dsh-balance-float'
+dsh plugin --profile web add 'github:liuxr071209-create/dsh-balance-float-public#path:/dsh-audio-reward'
 ```
 
-下文用 `<clone>` 表示这个目录的**绝对路径**，例如 `X:\code\dsh-plugins`。
+以后更新：
 
-### 2. 装插件
+```powershell
+dsh plugin --profile web update dsh-balance-float dsh-audio-reward
+```
 
-**普通 Web 版 DSH**（`dsh` 在 PATH 里）：
+> PowerShell 里 `#` 是注释起始符，**含 `#` 的 spec 必须用引号包起来**，否则命令会被截断。`@` 开头的参数也建议加引号。
+
+### 方式 B：clone 后从本地装（弱网、想改代码、或 pnpm < 9）
+
+```powershell
+git clone https://github.com/liuxr071209-create/dsh-balance-float-public.git
+```
+
+下文用 `<clone>` 表示这个目录的**绝对路径**，例如 `X:\code\dsh-balance-float-public`：
 
 ```powershell
 dsh plugin --profile web add '<clone>/dsh-balance-float'
 dsh plugin --profile web add '<clone>/dsh-audio-reward'
 ```
 
-**Windows Desktop 版**：`desktop` profile 由应用独占，必须用它自带的 CLI：
+### Windows Desktop 版
+
+`desktop` profile 由桌面应用独占，**必须用它自带的 CLI**。把上面命令里的 `dsh` 换成 `& '<dsh-desktop>'`、`--profile web` 换成 `--profile desktop`：
 
 ```powershell
-& '<dsh-desktop>' plugin --profile desktop add '<clone>/dsh-balance-float'
+& '<dsh-desktop>' plugin --profile desktop add 'github:liuxr071209-create/dsh-balance-float-public#path:/dsh-balance-float'
 & '<dsh-desktop>' plugin --profile desktop add '<clone>/dsh-audio-reward'
 ```
 
 `<dsh-desktop>` 是自带 CLI 的完整路径，形如 `<DSH Desktop 安装目录>\resources\runtime\cli\bin\dsh.cmd`。**怎么找**：任务管理器里看 `DeepSeek Harness.exe` 的「命令行」，第一段就是安装目录；或在安装目录下搜 `dsh.cmd`。
 
-> 两个容易踩的点：
-> - **路径必须写绝对路径。** 写 `dsh-balance-float` 会被当成 npm 包名去网上拉取然后 404；写相对路径则按你**执行命令时所在的目录**解析，不是按仓库目录。
-> - 装完 Host 半边会立即热装载，但**浏览器半边要刷新页面**才会加载。刷新后就能看到浮窗。
+### 装完注意
 
-### 3. 配好 API Key（只有余额插件需要）
+- 用绝对路径或 `github:` spec。写 `dsh-balance-float` 会被当成 npm 包名去网上拉取然后 404；写相对路径则按你**执行命令时所在的目录**解析，不是按仓库目录。
+- Host 半边会立即热装载，但**浏览器半边要刷新页面**才会加载。刷新后就能看到浮窗。
+
+### 配好 API Key（只有余额插件需要）
 
 余额插件从 DSH 的凭据里读 `DEEPSEEK_API_KEY`。两种方式任选其一：
 
@@ -87,7 +102,7 @@ dsh plugin --profile web add '<clone>/dsh-audio-reward'
 
 插件**不会**把 key 写进任何日志或响应，浏览器端也拿不到它 —— 见[隐私](#隐私)。
 
-### 4. 确认能用
+### 确认能用
 
 刷新 DSH 页面，界面右上角应该出现浮窗。没出现就先查 Host 半边（端口按你的实际值改）：
 
@@ -186,7 +201,7 @@ Desktop 版把 `dsh` 换成 `& '<dsh-desktop>'`、`web` 换成 `desktop`。卸�
 | 现象 | 处理 |
 |---|---|
 | 页面完全看不到浮窗 | 插件没激活。刷新页面看控制台；DSH 启动时若条目没激活，加载页会直接列出插件名和原因 |
-| 浮窗显示「未配置 API Key」 | 按[第 3 步](#3-配好-api-key只有余额插件需要)配好 key |
+| 浮窗显示「未配置 API Key」 | 按[上文](#配好-api-key只有余额插件需要)配好 key |
 | 浮窗显示「余额不可用」 | `/user/balance` 请求失败。看 DSH 日志里的 `[dsh-balance-float] 余额查询失败: …`；`401` 说明 key 无效 |
 | 浮窗卡住拖不动 | 控制台跑 `__DSH_BALANCE_FLOAT__.getDiagnostics()`，把结果发出来（里面记录了拖动时用的参照盒与边界） |
 | 面板显示「音频目录里没有可用的音频」 | `audioDir` 写错了或里面没有受支持的音频。`node dsh-audio-reward/scripts/verify-env.mjs` 会告诉你找到了几个 |
