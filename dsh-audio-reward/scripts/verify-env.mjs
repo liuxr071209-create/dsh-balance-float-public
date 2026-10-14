@@ -95,11 +95,22 @@ await stage('bundle patch shape', async () => {
 
 /* 3 — the configured library ------------------------------------------ */
 
-await stage('audio library', async () => {
-  const tracks = listTracks(settings)
-  if (tracks.length === 0) throw new Error(`no usable audio in ${settings.audioDir}`)
-  const detail = tracks.map((track) => `${track.label} (${track.mime}, ${String(track.bytes)}B)`).join(', ')
-  return `${tracks.length} track(s): ${detail}`
+/** Short summary of a track, used by both library lines below. */
+const describeTrack = (track) => `${track.label} (${track.mime}, ${String(track.bytes)}B)`
+
+await stage('your audio directory', async () => {
+  const user = listTracks({ ...settings, bundledAudio: 'off' })
+  if (user.length === 0) return `nothing usable in ${settings.audioDir} — ${settings.bundledAudio} mode decides what plays instead`
+  return `${user.length} track(s) in ${settings.audioDir}: ${user.map(describeTrack).join(', ')}`
+})
+
+await stage('clips shipped in the package', async () => {
+  /* What a fresh install hears, and what `merge` adds on top of the above. */
+  const bundled = listTracks({ ...settings, audioDir: join(settings.audioDir, '__absent__') })
+  if (bundled.length === 0) throw new Error('the package ships no usable audio')
+  const hasDefault = bundled.some((track) => track.name === settings.defaultTrack)
+  assert.ok(hasDefault, `defaultTrack "${settings.defaultTrack}" is not among the shipped clips`)
+  return `${bundled.length} track(s), mode ${settings.bundledAudio}, default ${settings.defaultTrack}: ${bundled.map(describeTrack).join(', ')}`
 })
 
 /* 4 — the running DSH -------------------------------------------------- */
@@ -111,12 +122,16 @@ await stage('live Host routes', async () => {
   if (state.status === 404 || state.status === 401) return 'not installed in this profile yet'
   assert.equal(state.status, 200, `state route answered HTTP ${state.status}`)
   const body = await state.json()
+  /* A running Host keeps the module it already imported, so a `defaultTrack`
+     that is missing here means the process predates this code: restart DSH. */
+  const stale = !('defaultTrack' in body)
   assert.equal(body.ok, true)
   const events = await fetch(`${BASE}/api/dsh-audio-reward/events?since=0`, { headers: { accept: 'application/json' } })
   assert.equal(events.status, 200)
   const cue = await events.json()
   assert.equal(typeof cue.latest, 'number')
-  return `${body.tracks.length} track(s) served, cursor at ${cue.latest}`
+  if (stale) return `${String(body.tracks.length)} track(s) served, but the running Host is older than this source — restart DSH to load it`
+  return `${body.tracks.length} track(s) served, default ${body.defaultTrack}, cursor at ${cue.latest}`
 })
 
 await stage('composed browser bundle', async () => {

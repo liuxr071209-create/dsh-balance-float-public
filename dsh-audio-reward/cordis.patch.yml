@@ -2,13 +2,25 @@
 # `dsh.client`, so DSH picks up ./client.js for the Web UI under the same id.
 #
 # Every value below is optional; deleting the `config` block restores defaults.
+# Files here are streamed from disk (or from this package's own `audio/`), never
+# copied anywhere.
 - insert:
     - id: dsh-audio-reward
       name: dsh-audio-reward
       config:
-        # Directory scanned for audio. Files are streamed from here; nothing is
-        # copied into the package.
+        # Your own audio directory, scanned first. It does not have to exist:
+        # a fresh install falls back to the clips in this package's audio/.
+        # Change this to your own folder.
         audioDir: D:/音频
+        # How the shipped clips combine with audioDir:
+        #   fallback (default) — audioDir if it holds anything usable, else the
+        #                        shipped clips
+        #   merge              — both, your copy winning on a name collision
+        #   off                — only audioDir
+        bundledAudio: fallback
+        # Which clip plays until the user picks another, by file name. A name
+        # that is not in the library falls back to the first entry.
+        defaultTrack: chime.wav
         # Only these extensions are listed and served.
         extensions:
           - .mp3
@@ -25,9 +37,9 @@
         coalesceMs: 600
         # Cues retained for the browser to catch up on.
         maxEvents: 64
-        # Display labels. Without an entry the file's own name is shown with
-        # bracketed provenance noise stripped. Quoted because these keys carry
-        # brackets and full-width punctuation.
+        # Display labels for your own files. Without an entry the file's own
+        # name is shown with bracketed provenance noise stripped. Quote keys
+        # that carry brackets or full-width punctuation.
         labels:
           'ciallo.mp3': ciallo
           '你干嘛哎哟坤坤_耳聆网_[声音ID：39642].mp3': 爱坤

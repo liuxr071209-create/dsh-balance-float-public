@@ -20,8 +20,9 @@
  * @module dsh-audio-reward
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, dirname, extname, join, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /* ------------------------------------------------------------------ */
 /* Identity                                                            */
@@ -49,6 +50,13 @@ export const TRACK_PREFIX = '/api/dsh-audio-reward/track'
 /* ------------------------------------------------------------------ */
 
 const DEFAULT_AUDIO_DIR = 'D:/音频'
+/** Clips shipped inside this package, so a fresh install makes a sound. */
+const BUNDLED_AUDIO_DIR = fileURLToPath(new URL('./audio', import.meta.url))
+/** How the bundled clips combine with the user's directory. */
+const BUNDLED_MODES = ['fallback', 'merge', 'off']
+const DEFAULT_BUNDLED_MODE = 'fallback'
+/** Neutral clip a fresh install plays until the user picks something else. */
+const DEFAULT_DEFAULT_TRACK = 'chime.wav'
 const MIME_BY_EXTENSION = {
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
@@ -117,10 +125,31 @@ export function normalizeSettings(raw) {
       ? config.audioDir.trim()
       : DEFAULT_AUDIO_DIR,
     extensions: normalizeExtensions(config.extensions),
+    bundledAudio: BUNDLED_MODES.includes(config.bundledAudio) ? config.bundledAudio : DEFAULT_BUNDLED_MODE,
+    /* Normally this package's own `audio/` directory; overridable so a test can
+       point at a fixture instead of the shipped clips. */
+    bundledAudioDir: typeof config.bundledAudioDir === 'string' && config.bundledAudioDir.trim() !== ''
+      ? config.bundledAudioDir.trim()
+      : BUNDLED_AUDIO_DIR,
+    defaultTrack: typeof config.defaultTrack === 'string' && config.defaultTrack.trim() !== ''
+      ? config.defaultTrack.trim()
+      : DEFAULT_DEFAULT_TRACK,
     coalesceMs: clampNumber(config.coalesceMs, MIN_COALESCE_MS, MAX_COALESCE_MS, DEFAULT_COALESCE_MS),
     maxEvents: clampNumber(config.maxEvents, 4, 512, DEFAULT_MAX_EVENTS),
     labels: normalizeLabels(config.labels),
   }
+}
+
+/**
+ * The directories a track name may resolve in, most specific first. Listing
+ * applies the `bundledAudio` mode; resolution only needs the order.
+ * @param settings - validated settings.
+ * @returns directories.
+ */
+export function librarySources(settings) {
+  return settings.bundledAudio === 'off'
+    ? [settings.audioDir]
+    : [settings.audioDir, settings.bundledAudioDir]
 }
 
 /* ------------------------------------------------------------------ */
@@ -153,19 +182,19 @@ export function labelFor(fileName, labels = {}) {
 }
 
 /**
- * Resolve one requested track name to a readable file inside the library.
+ * Resolve one requested track name to a readable file in one directory.
  *
  * Every rejection returns null, and the route answers 404 for all of them: an
  * outside caller learns nothing about the filesystem. Traversal is refused
  * three ways — the decoded name must be one path segment, it must equal its own
- * basename, and the resolved path must still sit inside the library.
+ * basename, and the resolved path must sit *directly* in that directory.
  *
- * @param audioDir - the configured library directory.
+ * @param audioDir - one candidate directory.
  * @param requested - the raw (already URL-decoded) name from the request.
  * @param settings - validated settings.
  * @returns `{ path, name, bytes, mime }`, or null.
  */
-export function resolveTrack(audioDir, requested, settings) {
+export function resolveTrackIn(audioDir, requested, settings) {
   if (typeof requested !== 'string' || requested === '') return null
   if (requested.includes('/') || requested.includes('\\') || requested.includes('\0')) return null
   if (requested === '.' || requested === '..') return null
@@ -188,31 +217,86 @@ export function resolveTrack(audioDir, requested, settings) {
 }
 
 /**
- * List the library. A missing or unreadable directory is an empty library,
+ * Resolve a requested track name against every library source, most specific
+ * first, so a name from either the user's directory or the bundled set serves.
+ * @param requested - the raw name from the request.
+ * @param settings - validated settings.
+ * @returns the resolved track, or null.
+ */
+export function resolveTrack(requested, settings) {
+  for (const dir of librarySources(settings)) {
+    const track = resolveTrackIn(dir, requested, settings)
+    if (track !== null) return track
+  }
+  return null
+}
+
+/**
+ * List one directory. A missing or unreadable directory is an empty library,
  * never a failure: the user may not have created it yet.
+ * @param audioDir - the directory to read.
+ * @param settings - validated settings.
+ * @param source - `'user'` or `'bundled'`, recorded on each track.
+ * @returns track descriptors.
+ */
+function listDirectory(audioDir, settings, source) {
+  let names
+  try {
+    names = readdirSync(audioDir)
+  } catch {
+    return []
+  }
+  const tracks = []
+  for (const entry of names) {
+    const track = resolveTrackIn(audioDir, entry, settings)
+    if (track === null) continue
+    tracks.push({
+      name: track.name,
+      label: labelFor(track.name, settings.labels),
+      bytes: track.bytes,
+      mime: track.mime,
+      source,
+    })
+  }
+  return tracks
+}
+
+/**
+ * Build the library the browser chooses from.
+ *
+ * The bundled clips are what make a fresh install audible, so `bundledAudio`
+ * defaults to `fallback`: the user's own directory wins the moment it holds
+ * anything usable, and the shipped clips cover the case where it does not exist.
+ * `merge` keeps both (the user's copy of a name wins), `off` uses only the
+ * user's directory.
  *
  * Ordering is by file name with a plain code-unit comparison, deliberately not
  * `localeCompare`: the first entry is the default selection, and a
  * locale-dependent order would make that differ between machines.
  *
  * @param settings - validated settings.
- * @returns track descriptors.
+ * @returns track descriptors, user entries first on a name collision.
  */
 export function listTracks(settings) {
-  let names
-  try {
-    names = readdirSync(settings.audioDir)
-  } catch {
-    return []
+  const user = listDirectory(settings.audioDir, settings, 'user')
+  if (settings.bundledAudio === 'off') return sortTracks(user)
+  const bundled = listDirectory(settings.bundledAudioDir, settings, 'bundled')
+  if (settings.bundledAudio === 'merge') {
+    const seen = new Set()
+    const merged = []
+    for (const track of [...user, ...bundled]) {
+      if (seen.has(track.name)) continue
+      seen.add(track.name)
+      merged.push(track)
+    }
+    return sortTracks(merged)
   }
-  const tracks = []
-  for (const entry of names) {
-    const track = resolveTrack(settings.audioDir, entry, settings)
-    if (track === null) continue
-    tracks.push({ name: track.name, label: labelFor(track.name, settings.labels), bytes: track.bytes, mime: track.mime })
-  }
-  tracks.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
-  return tracks
+  return sortTracks(user.length > 0 ? user : bundled)
+}
+
+/** Stable, locale-independent ordering shared by every mode. */
+function sortTracks(tracks) {
+  return [...tracks].sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
 }
 
 /* ------------------------------------------------------------------ */
@@ -356,6 +440,9 @@ export function makeStateHandler(settings, feed) {
     json(response, 200, {
       ok: true,
       tracks: listTracks(settings),
+      /* Named rather than positional, so the default does not shift when files
+         are added or when the sort order changes. */
+      defaultTrack: settings.defaultTrack,
       coalesceMs: settings.coalesceMs,
       latest: feed.latest,
       serverTime: Date.now(),
@@ -454,7 +541,7 @@ export function makeTrackHandler(settings) {
       response.end()
       return
     }
-    const track = resolveTrack(settings.audioDir, requested, settings)
+    const track = resolveTrack(requested, settings)
     if (track === null) {
       /* One answer for "missing", "outside the library", and "not audio". */
       response.writeHead(404)
@@ -538,9 +625,13 @@ export function apply(ctx, config) {
     handler: makeTrackHandler(settings),
   }), 'dsh-audio-reward: audio route')
 
-  if (!existsSync(settings.audioDir)) {
+  /* Warn only when nothing at all is playable; a missing user directory is the
+     normal case for a fresh install, which the bundled clips cover. */
+  if (listTracks(settings).length === 0) {
     try {
-      ctx.logger?.warn?.(`[dsh-audio-reward] 音频目录不存在: ${settings.audioDir}`)
+      ctx.logger?.warn?.(
+        `[dsh-audio-reward] 没有可用音频：${settings.audioDir} 不存在或为空，自带的也不可用`,
+      )
     } catch {
       // A logger this plugin may not reach is not worth failing activation over.
     }

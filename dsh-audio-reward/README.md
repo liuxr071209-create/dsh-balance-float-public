@@ -17,13 +17,29 @@ DeepSeek Harness 的一个插件：**agent 完成一轮任务后播放一段音�
 
 | 文件 | 作用 |
 |---|---|
-| `index.js` | Host 半边：监听 `session/event` 里的 `turn/end`、合并连发、列出音频目录、流式提供音频文件 |
+| `index.js` | Host 半边：监听 `session/event` 里的 `turn/end`、合并连发、列出音频库、流式提供音频文件 |
 | `client.js` | 浏览器半边：轮询 cue、播放选中音频、把选择器注册进余额浮窗 |
-| `cordis.patch.yml` | bundle patch：插入插件行，音频目录 / 合并窗口 / 标签都在这里配 |
-| `test/` | 19 个单元测试（不需要网络、不需要音频目录、不需要 DSH） |
-| `scripts/verify-env.mjs` | 环境验证：清单/patch 形状、真实音频目录、运行中 DSH 的路由与 bundle |
+| `cordis.patch.yml` | bundle patch：插入插件行，音频目录 / 自带音频 / 合并窗口 / 标签都在这里配 |
+| `audio/` | **自带的音频**，别人装完即可用（见下） |
+| `test/` | 21 个单元测试（不需要网络、不需要音频目录、不需要 DSH） |
+| `scripts/verify-env.mjs` | 环境验证：清单/patch 形状、两个音频来源各找到什么、运行中 DSH 的路由与 bundle |
+| `scripts/make-chime.mjs` | 生成 `audio/chime.wav`（`npm run chime`），纯正弦合成，不依赖任何素材 |
 
 分工：**Host 监听会话事件、读磁盘**；**浏览器播放**。密钥、路径、文件句柄都不进浏览器。
+
+## 自带音频（装完即用）
+
+`audio/` 里放了三个文件，所以**不配任何东西也能出声**：
+
+| 文件 | 来源 |
+|---|---|
+| `chime.wav` | 由 `scripts/make-chime.mjs` 合成（两音正弦 + 指数衰减），**没有第三方版权** |
+| `ciallo.mp3` | 作者提供的梗音 |
+| `aikun.mp3` | 作者提供的梗音 |
+
+默认 `bundledAudio: fallback`：**你自己的 `audioDir` 里只要有可用音频，就只用你自己的**；目录不存在或为空时才用自带的。想让两边都出现在下拉里，把它改成 `merge`；想完全关掉自带音频就改成 `off`。
+
+默认播放哪个由 `defaultTrack` 决定（出厂值是中性的 `chime.wav`，不是梗音）。
 
 ## 安装
 
@@ -34,9 +50,9 @@ dsh plugin --profile web add '<clone>/dsh-audio-reward'                    # Web
 & '<dsh-desktop>' plugin --profile desktop add '<clone>/dsh-audio-reward'   # Desktop 版
 ```
 
-装完**刷新页面**。
+装完**刷新页面**。装了之后如果改了 `index.js` 或配置，要**重启 DSH** 才生效。
 
-**依赖**：这个插件把选择器注册进余额浮窗，所以要同时装 [dsh-balance-float](../dsh-balance-float)。没装也能跑（音频照样播），只是没有界面可点，只能靠 `localStorage` 或控制台 API 设置。另外记得把 `audioDir` 改成你自己的目录。
+**依赖**：这个插件把选择器注册进余额浮窗，所以要同时装 [dsh-balance-float](../dsh-balance-float)。没装也能跑（音频照样播），只是没有界面可点，只能靠 `localStorage` 或控制台 API 设置。
 
 ## 配置
 
@@ -44,7 +60,9 @@ dsh plugin --profile web add '<clone>/dsh-audio-reward'                    # Web
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `audioDir` | `D:/音频` | 扫描哪个目录。文件是**流式读**的，不会拷进包里。**别人用请改成自己的目录** |
+| `audioDir` | `D:/音频` | 你自己的音频目录，**优先使用**（**别人用请改成自己的目录**）。文件是**流式读**的，不会拷进包里；目录不存在也没关系 |
+| `bundledAudio` | `fallback` | `fallback` / `merge` / `off`，见上 |
+| `defaultTrack` | `chime.wav` | 默认播哪个（按文件名）；名字不在列表里就退回第一个 |
 | `extensions` | `.mp3 .wav .ogg .opus .m4a .aac .flac` | 只有列出的扩展名会被列出和提供 |
 | `coalesceMs` | `600` | 尾随合并窗口：一次任务可能关掉好几个 turn（agent 自己的 + 每个子 agent 的），窗口内只发一个 cue。**任务仍响多次就调大，连续两次任务被吞掉就调小，设 `0` 表示不合并** |
 | `maxEvents` | `64` | 保留多少个 cue 供浏览器追赶 |

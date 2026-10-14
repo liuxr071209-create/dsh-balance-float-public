@@ -377,16 +377,22 @@ window.__ModuleLoader__.load({
             state.status = 'empty'
           } else {
             const names = new Set(state.tracks.map((track) => track.name))
-            /* Pick the first track only while the feature is on and nothing
-               usable is selected: a deliberate "off" is never overridden, and a
-               selection whose file disappeared falls back to a real one. */
+            /* The Host names its preferred default, so the fresh-install choice
+               does not shift when files are added or the sort changes; an
+               unknown name falls back to the first entry. */
+            const preferred = typeof body?.defaultTrack === 'string' && names.has(body.defaultTrack)
+              ? body.defaultTrack
+              : state.tracks[0].name
+            /* Pick a default only while the feature is on and nothing usable is
+               selected: a deliberate "off" is never overridden, and a selection
+               whose file disappeared falls back to a real one. */
             if (state.track === null) {
               if (state.enabled) {
-                state.track = state.tracks[0].name
+                state.track = preferred
                 writeStored(STORAGE_KEYS.track, state.track)
               }
             } else if (!names.has(state.track)) {
-              state.track = state.tracks[0].name
+              state.track = preferred
               writeStored(STORAGE_KEYS.track, state.track)
             }
             if (state.status !== 'blocked') state.status = 'idle'

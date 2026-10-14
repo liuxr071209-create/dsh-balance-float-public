@@ -6,7 +6,7 @@
  * guards are exercised against the filesystem rather than a mock of it.
  */
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test, { after } from 'node:test'
@@ -25,10 +25,14 @@ import {
   normalizeSettings,
   parseRange,
   resolveTrack,
+  resolveTrackIn,
 } from '../index.js'
 
 const AUDIO_DIR = mkdtempSync(join(tmpdir(), 'dsh-audio-test-'))
+/** Stands in for the clips shipped inside the package. */
+const BUNDLED_DIR = mkdtempSync(join(tmpdir(), 'dsh-audio-bundled-'))
 const MP3_BYTES = Buffer.from('ID3\x03\x00\x00\x00fake-mp3-payload-0123456789', 'latin1')
+const WAV_BYTES = Buffer.from('RIFF____WAVEfmt fake-wav-payload-0123456789', 'latin1')
 const CLIP_NAME = '你干嘛哎哟坤坤_耳聆网_[声音ID：39642].mp3'
 
 writeFileSync(join(AUDIO_DIR, 'ciallo.mp3'), MP3_BYTES)
@@ -36,14 +40,21 @@ writeFileSync(join(AUDIO_DIR, CLIP_NAME), MP3_BYTES)
 writeFileSync(join(AUDIO_DIR, 'notes.txt'), 'not audio')
 mkdirSync(join(AUDIO_DIR, 'nested.mp3'))
 
+writeFileSync(join(BUNDLED_DIR, 'chime.wav'), WAV_BYTES)
+writeFileSync(join(BUNDLED_DIR, 'aikun.mp3'), MP3_BYTES)
+/* The same name as one of the user's files, to prove precedence and merging. */
+writeFileSync(join(BUNDLED_DIR, 'ciallo.mp3'), WAV_BYTES)
+
 after(() => {
   rmSync(AUDIO_DIR, { recursive: true, force: true })
+  rmSync(BUNDLED_DIR, { recursive: true, force: true })
 })
 
 /** Settings pointed at the fixture library, with the fixture labels. */
 function fixtureSettings(overrides = {}) {
   return normalizeSettings({
     audioDir: AUDIO_DIR,
+    bundledAudioDir: BUNDLED_DIR,
     labels: { 'ciallo.mp3': 'ciallo', [CLIP_NAME]: '爱坤' },
     ...overrides,
   })
@@ -56,19 +67,28 @@ function fixtureSettings(overrides = {}) {
 test('normalizeSettings defaults, clamps, and filters the extension allowlist', () => {
   const defaults = normalizeSettings(undefined)
   assert.equal(defaults.audioDir, 'D:/音频')
+  assert.equal(defaults.bundledAudio, 'fallback')
+  assert.equal(defaults.defaultTrack, 'chime.wav')
   assert.equal(defaults.coalesceMs, 600)
   assert.equal(defaults.maxEvents, 64)
   assert.ok(defaults.extensions.includes('.mp3'))
   assert.deepEqual(defaults.labels, {})
+  // The bundled directory is this package's own `audio/`, resolved from the module.
+  assert.match(defaults.bundledAudioDir.replaceAll('\\', '/'), /dsh-audio-reward\/audio$/)
 
   const custom = normalizeSettings({
     audioDir: '  E:/clips  ',
+    bundledAudio: 'nonsense',
+    defaultTrack: '  x.mp3  ',
     coalesceMs: 99_999,
     maxEvents: 1,
     extensions: ['.mp3', 'mp3', '.exe', '', 7, '.OGG'],
     labels: { 'a.mp3': '  A  ', '': 'x', b: 42 },
   })
   assert.equal(custom.audioDir, 'E:/clips')
+  // An unknown mode falls back to the default instead of disabling the clips.
+  assert.equal(custom.bundledAudio, 'fallback')
+  assert.equal(custom.defaultTrack, 'x.mp3')
   assert.equal(custom.coalesceMs, 10_000)
   assert.equal(custom.maxEvents, 4)
   // Only known audio extensions survive, normalised to lower case.
@@ -92,23 +112,69 @@ test('labels come from config, else the file name with provenance noise stripped
 /* Library                                                              */
 /* ------------------------------------------------------------------ */
 
-test('the library lists only audio files, in a locale-independent order', () => {
+test('the user directory wins by default, and the bundled clips cover its absence', () => {
   const tracks = listTracks(fixtureSettings())
-  assert.deepEqual(tracks.map((track) => track.label), ['ciallo', '爱坤'])
+  // `fallback`: the user's directory holds something, so only it is listed.
   assert.deepEqual(tracks.map((track) => track.name), ['ciallo.mp3', CLIP_NAME])
+  assert.deepEqual(tracks.map((track) => track.label), ['ciallo', '爱坤'])
+  assert.deepEqual([...new Set(tracks.map((track) => track.source))], ['user'])
   assert.equal(tracks[0].mime, 'audio/mpeg')
   assert.equal(tracks[0].bytes, MP3_BYTES.length)
   // A directory named like an audio file is not a track.
   assert.equal(tracks.some((track) => track.name === 'nested.mp3'), false)
-  // A missing directory is an empty library, not a failure.
-  assert.deepEqual(listTracks(normalizeSettings({ audioDir: join(AUDIO_DIR, 'nope') })), [])
+
+  // A user directory that does not exist (the fresh-install case) falls back to
+  // the shipped clips, so the plugin is audible out of the box.
+  const fresh = listTracks(fixtureSettings({ audioDir: join(AUDIO_DIR, 'nope') }))
+  assert.deepEqual(fresh.map((track) => track.name), ['aikun.mp3', 'chime.wav', 'ciallo.mp3'])
+  assert.deepEqual([...new Set(fresh.map((track) => track.source))], ['bundled'])
+  assert.equal(fresh.find((track) => track.name === 'chime.wav').mime, 'audio/wav')
+
+  // `merge` keeps both, the user's copy of a shared name winning.
+  const merged = listTracks(fixtureSettings({ bundledAudio: 'merge' }))
+  assert.deepEqual(merged.map((track) => track.name), ['aikun.mp3', 'chime.wav', 'ciallo.mp3', CLIP_NAME])
+  assert.equal(merged.find((track) => track.name === 'ciallo.mp3').source, 'user')
+  assert.equal(merged.find((track) => track.name === 'ciallo.mp3').bytes, MP3_BYTES.length)
+
+  // `off` ignores the shipped clips entirely.
+  const off = listTracks(fixtureSettings({ bundledAudio: 'off', audioDir: join(AUDIO_DIR, 'nope') }))
+  assert.deepEqual(off, [])
 })
 
-test('resolveTrack refuses anything that is not one audio file in the library', () => {
+test('the package ships its own clips, and the manifest publishes them', () => {
+  const defaults = normalizeSettings(undefined)
+  /* The shipped clips are what make a fresh install audible, so assert against
+     the real directory in the package rather than a fixture. */
+  const bundled = listTracks({ ...defaults, audioDir: join(AUDIO_DIR, 'nope') })
+  assert.ok(bundled.length > 0, 'the package must ship at least one playable clip')
+  assert.ok(
+    bundled.some((track) => track.name === defaults.defaultTrack),
+    `the configured default clip ${defaults.defaultTrack} must be among the shipped clips`,
+  )
+  assert.ok(bundled.every((track) => track.source === 'bundled'))
+
+  /* An install from GitHub copies only what `package.json` `files` lists, so a
+     missing entry here means the clips silently do not ship. */
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.ok(manifest.files.includes('audio'), 'package.json `files` must publish the audio directory')
+  for (const entry of bundled) {
+    assert.ok(manifest.files.includes('audio') || manifest.files.some((item) => item.startsWith('audio/')), entry.name)
+  }
+})
+
+test('a name resolves in either source, and the same guards apply to both', () => {
   const settings = fixtureSettings()
-  assert.ok(resolveTrack(AUDIO_DIR, 'ciallo.mp3', settings) !== null)
-  assert.ok(resolveTrack(AUDIO_DIR, CLIP_NAME, settings) !== null)
-  // Traversal, in every form the guard claims to cover.
+  // User files first, then the bundled ones, so one route serves both lists.
+  assert.ok(resolveTrack('ciallo.mp3', settings) !== null)
+  assert.ok(resolveTrack(CLIP_NAME, settings) !== null)
+  assert.ok(resolveTrack('chime.wav', settings) !== null)
+  assert.equal(resolveTrack('missing.mp3', settings), null)
+  // A shared name resolves to the user's copy, matching what was listed.
+  assert.equal(resolveTrack('ciallo.mp3', settings).bytes, MP3_BYTES.length)
+  // `off` makes the bundled names unreachable as well as unlisted.
+  assert.equal(resolveTrack('chime.wav', fixtureSettings({ bundledAudio: 'off' })), null)
+
+  // The traversal guards are per-directory, so they hold for the bundled set too.
   for (const attempt of [
     '../ciallo.mp3',
     '..\\ciallo.mp3',
@@ -121,15 +187,13 @@ test('resolveTrack refuses anything that is not one audio file in the library', 
     'C:/Windows/System32/drivers/etc/hosts',
     'ciallo.mp3\0.txt',
   ]) {
-    assert.equal(resolveTrack(AUDIO_DIR, attempt, settings), null, `must refuse ${JSON.stringify(attempt)}`)
+    assert.equal(resolveTrackIn(BUNDLED_DIR, attempt, settings), null, `must refuse ${JSON.stringify(attempt)}`)
+    assert.equal(resolveTrack(attempt, settings), null, `must refuse ${JSON.stringify(attempt)} everywhere`)
   }
   // Wrong extension, non-file, and absent names.
-  assert.equal(resolveTrack(AUDIO_DIR, 'notes.txt', settings), null)
-  assert.equal(resolveTrack(AUDIO_DIR, 'nested.mp3', settings), null)
-  assert.equal(resolveTrack(AUDIO_DIR, 'missing.mp3', settings), null)
-  // A directory outside the library is still inside its own root, so the
-  // extension and file checks are what stop it there.
-  assert.equal(resolveTrack(AUDIO_DIR, 'notes.txt', normalizeSettings({ audioDir: AUDIO_DIR, extensions: ['.txt'] })), null)
+  assert.equal(resolveTrackIn(AUDIO_DIR, 'notes.txt', settings), null)
+  assert.equal(resolveTrackIn(AUDIO_DIR, 'nested.mp3', settings), null)
+  assert.equal(resolveTrackIn(AUDIO_DIR, 'missing.mp3', settings), null)
 })
 
 /* ------------------------------------------------------------------ */
@@ -261,6 +325,9 @@ test('the state route reports the library, and refuses other callers', async () 
   assert.equal(ok.headers['cache-control'], 'no-store')
   assert.equal(ok.json.ok, true)
   assert.deepEqual(ok.json.tracks.map((track) => track.label), ['ciallo', '爱坤'])
+  // The default is published by name, so the browser does not have to guess it
+  // from the sort order.
+  assert.equal(ok.json.defaultTrack, 'chime.wav')
   assert.equal(ok.json.latest, 0)
   // The absolute library path is deliberately not exposed.
   assert.doesNotMatch(JSON.stringify(ok.json), /dsh-audio-test/)

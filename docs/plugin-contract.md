@@ -136,13 +136,28 @@ ctx.on('session/event', (session, event) => {
 
 ## 6. 安装与激活语义
 
-| 操作 | 命令 | 生效方式 |
+| 操作 | 生效方式 |
+|---|---|
+| `dsh plugin --profile <名> add <绝对路径 或 github: spec>` | CLI 在 profile 目录里跑 pnpm，成功后把包名追加进 profile `package.json` 的 `dsh.profile.bundles`。**新包的 Host 半边会热装载**（实测：装完立刻请求它的路由就返回 200），浏览器半边要**刷新页面** |
+| `dsh plugin --profile <名> remove <包名>` | 先从 bundle 列表摘掉并卸载，再跑 pnpm |
+| `dsh plugin --profile <名> list` | 确认包装上了 |
+| `dsh --profile <名> --dump-config` | 打印组合后的配置树；**`desktop` 会被拒绝**（"managed exclusively by the Electron application"），只有 `plugin` 子命令能操作它 |
+
+### 改一个**已装**插件的代码或配置（0.2.0-rc.2 desktop 实测）
+
+注意这跟上表不是一回事：**首次安装**会热装载，**改已经装好的包**不会。
+
+| 改了什么 | 实测结果 | 结论 |
 |---|---|---|
-| 装一个包 | `dsh plugin --profile <名> add <绝对路径>` | CLI 在 profile 目录里跑 pnpm，成功后把包名追加进 profile `package.json` 的 `dsh.profile.bundles` |
-| 卸载 | `dsh plugin --profile <名> remove <包名>` | 先从 bundle 列表摘掉并卸载，再跑 pnpm |
-| 新增包后 | — | Host 半边**热装载**；**浏览器半边要刷新页面** |
-| 换包的路径 | 先 remove 再 add | 会被当成包替换，**需要重启 DSH** 才能加载新的 JS 模块代 |
-| `--dump-config` | `dsh --profile <名> --dump-config` | 打印组合后的配置树；**`desktop` 会被拒绝**（"managed exclusively by the Electron application"），只有 `plugin` 子命令能操作它 |
+| `client.js`（浏览器半边） | 复算 bundle `rev` 请求新 URL → **200**，内容已是新代码 | 进程会重新组合，**刷新页面**即可 |
+| `client.js` 但页面行为没变 | — | 刷新页面；仍不对就重启 DSH |
+| `index.js`（Host 半边代码） | 新加的 `/state` 字段**不出现**，新增的音频名 **404** | **需要重启 DSH** —— 运行中的进程用的是它已经 import 过的那个模块 |
+| `cordis.patch.yml`（配置） | 改一个已发布的配置值、等 6 秒，`/state` 里**仍是旧值** | 官方文档说配置热重载需要 HMR 生效；本机实测 bundle patch 的改动没热生效，**保险做法是重启 DSH** |
+| 换了包的**路径**（移动目录） | — | 会被当成包替换，**需要重启 DSH** 才能加载新的 JS 模块代 |
+
+**一句话：改 `client.js` → 刷新页面；改 `index.js`、改配置、移动目录 → 重启 DSH。**
+
+想确认运行中的进程跑的是哪一版代码，用「新字段探针」：给某个路由的响应加一个新字段，请求它看向不出现。本仓库两个 `scripts/verify-env.mjs` 就是这么自检的（`live Host routes` 那一行会在进程偏旧时明确说出来）。
 
 ## 7. 自己核对契约：DSH 源码怎么读
 

@@ -365,6 +365,34 @@ test('a refused autoplay is reported and retried on the next gesture', async () 
   }
 })
 
+test('the Host names the default clip, so a fresh install is deliberate', async () => {
+  const preferred = await loadPlugin({
+    responses: { [STATE_PATH]: { ...TRACKS, defaultTrack: 'kunkun.mp3' }, [EVENTS_PATH]: NO_CUES },
+  })
+  try {
+    await preferred.settle()
+    await preferred.settle()
+    assert.equal(preferred.windowStub.__DSH_AUDIO_REWARD__.getState().track, 'kunkun.mp3')
+  } finally {
+    preferred.dispose()
+  }
+
+  // A name that is not in the library falls back to the first entry, not to
+  // "off" and not to a broken selection.
+  const unknown = await loadPlugin({
+    responses: { [STATE_PATH]: { ...TRACKS, defaultTrack: 'missing.mp3' }, [EVENTS_PATH]: NO_CUES },
+  })
+  try {
+    await unknown.settle()
+    await unknown.settle()
+    const state = unknown.windowStub.__DSH_AUDIO_REWARD__.getState()
+    assert.equal(state.track, 'ciallo.mp3')
+    assert.equal(state.enabled, true)
+  } finally {
+    unknown.dispose()
+  }
+})
+
 test('an empty library is reported, and a vanished selection falls back', async () => {
   const responses = {
     [STATE_PATH]: { tracks: [], latest: 0, serverTime: 1 },

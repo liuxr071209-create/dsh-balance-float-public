@@ -83,7 +83,8 @@ dsh plugin --profile web add '<clone>/dsh-audio-reward'
 ### 装完注意
 
 - 用绝对路径或 `github:` spec。写 `dsh-balance-float` 会被当成 npm 包名去网上拉取然后 404；写相对路径则按你**执行命令时所在的目录**解析，不是按仓库目录。
-- Host 半边会立即热装载，但**浏览器半边要刷新页面**才会加载。刷新后就能看到浮窗。
+- **新装**的插件：Host 半边立即生效，**浏览器半边要刷新页面**。
+- **改**已经装好的插件：改 `client.js` 刷新页面即可；**改 `index.js` 或改配置都需要重启 DSH**（详见 [docs/plugin-contract.md](docs/plugin-contract.md)）。
 
 ### 配好 API Key（只有余额插件需要）
 
@@ -142,11 +143,15 @@ Invoke-WebRequest 'http://127.0.0.1:19387/api/dsh-audio-reward/state'  | Select-
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `audioDir` | `D:/音频` | 扫描哪个目录（**别人用请改成自己的目录**）。文件是流式读的，不会拷进插件 |
+| `audioDir` | `D:/音频` | 你自己的音频目录，**优先使用**（**别人用请改成自己的目录**）。目录不存在也没关系，会自动改用插件自带的音频 |
+| `bundledAudio` | `fallback` | 自带音频怎么和 `audioDir` 配合：`fallback` = `audioDir` 里有可用的就用它，否则用自带的；`merge` = 两者都要（同名以你的为准）；`off` = 只用 `audioDir` |
+| `defaultTrack` | `chime.wav` | 用户选之前默认播哪个（按文件名）；名字不在列表里就退回第一个 |
 | `extensions` | `.mp3 .wav .ogg .opus .m4a .aac .flac` | 只列出、只提供这些扩展名 |
 | `coalesceMs` | `600` | 一次任务响一次的去抖窗口，见下 |
 | `maxEvents` | `64` | 保留多少个「完成」事件供浏览器追赶 |
 | `labels` | — | 下拉里显示的名字，例如 `'ciallo.mp3': ciallo` |
+
+**自带音频**：插件包的 `audio/` 里放了三个音频 —— `chime.wav`（用 `npm run chime` 合成的提示音，**无第三方版权**）、`ciallo.mp3`、`aikun.mp3`。所以**别人装完不配任何东西就能出声**；往 `audioDir` 里丢文件就会换成自己的。
 
 **`coalesceMs` 是干什么的**：一次任务里 agent 可能结束好几个回合（它自己的 + 每个子 agent 的），每个回合都会触发一次「完成」。窗口内的多次触发会被合并成一次播放，所以一个任务只响一声。**还是响好几次就调大**（比如 `1500`），**连续两个任务被吞掉就调小**，设 `0` 表示不合并。
 
@@ -204,9 +209,11 @@ Desktop 版把 `dsh` 换成 `& '<dsh-desktop>'`、`web` 换成 `desktop`。卸�
 | 浮窗显示「未配置 API Key」 | 按[上文](#配好-api-key只有余额插件需要)配好 key |
 | 浮窗显示「余额不可用」 | `/user/balance` 请求失败。看 DSH 日志里的 `[dsh-balance-float] 余额查询失败: …`；`401` 说明 key 无效 |
 | 浮窗卡住拖不动 | 控制台跑 `__DSH_BALANCE_FLOAT__.getDiagnostics()`，把结果发出来（里面记录了拖动时用的参照盒与边界） |
-| 面板显示「音频目录里没有可用的音频」 | `audioDir` 写错了或里面没有受支持的音频。`node dsh-audio-reward/scripts/verify-env.mjs` 会告诉你找到了几个 |
+| 面板显示「音频目录里没有可用的音频」 | 连自带的音频都没列出来，说明书没装上：`node dsh-audio-reward/scripts/verify-env.mjs` 会打印两个来源各找到了什么 |
 | 一个任务响好几次 | 调大 `coalesceMs` |
-| 改了 `client.js` 但页面行为没变 | 刷新页面；还不行就重启 DSH（重启一定生效） |
+| 下拉里的音频不是自己期望的 | 默认是 `fallback`：`audioDir` 里有东西就只列你自己的。想看两边都有就把 `bundledAudio` 改成 `merge` |
+| 改了 `index.js` 或配置但没生效 | **重启 DSH**（Host 半边只加载一次；实测改配置也不会热生效） |
+| 改了 `client.js` 但页面行为没变 | 刷新页面；还不行就重启 DSH |
 | `--dump-config` 对 desktop profile 报错 | 预期行为：desktop profile 由桌面应用独占 |
 
 ---

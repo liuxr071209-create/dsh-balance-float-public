@@ -25,13 +25,15 @@
   "icon": "./icon.svg",
   "scripts": {
     "test": "node --test",
-    "verify": "node scripts/verify-env.mjs"
+    "verify": "node scripts/verify-env.mjs",
+    "chime": "node scripts/make-chime.mjs"
   },
   "files": [
     "index.js",
     "client.js",
     "cordis.patch.yml",
     "icon.svg",
+    "audio",
     "test",
     "scripts",
     "README.md",
