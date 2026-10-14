@@ -239,4 +239,6 @@ npm test                 # 42 个单元测试，不需要网络、不需要凭�
 
 ## 许可
 
-MIT。
+**代码** MIT（见 [LICENSE](LICENSE)）。
+
+例外：`dsh-audio-reward/audio/ciallo.mp3` 与 `aikun.mp3` 是第三方音频素材，**不在 MIT 范围内**；同目录的 `chime.wav` 由本仓库脚本生成，随 MIT 授权。需要干净许可的场合请用 `chime.wav`，或把 `bundledAudio` 设为 `off`。详见 [dsh-audio-reward/README.md](dsh-audio-reward/README.md#自带音频装完即用)。

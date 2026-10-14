@@ -31,11 +31,13 @@ DeepSeek Harness 的一个插件：**agent 完成一轮任务后播放一段音�
 
 `audio/` 里放了三个文件，所以**不配任何东西也能出声**：
 
-| 文件 | 来源 |
-|---|---|
-| `chime.wav` | 由 `scripts/make-chime.mjs` 合成（两音正弦 + 指数衰减），**没有第三方版权** |
-| `ciallo.mp3` | 作者提供的梗音 |
-| `aikun.mp3` | 作者提供的梗音 |
+| 文件 | 来源 | 许可 |
+|---|---|---|
+| `chime.wav` | 由 `scripts/make-chime.mjs` 合成（两音正弦 + 指数衰减） | 随本仓库 MIT，**无第三方权利** |
+| `ciallo.mp3` | 第三方梗音，作者提供 | **不在 MIT 范围内**，仅作示例便于装完即用 |
+| `aikun.mp3` | 第三方梗音，作者提供 | **不在 MIT 范围内**，仅作示例便于装完即用 |
+
+> **许可说明**：本仓库的 MIT 许可覆盖**代码**（`index.js` / `client.js` / 脚本 / 文档）。上表两个梗音是第三方音频素材，不是本项目的作品，也不在 MIT 范围内 —— 如果你要把这套东西用于需要干净许可的场合，请用 `chime.wav`，或把 `bundledAudio` 设为 `off` 并只用自己的文件。
 
 默认 `bundledAudio: fallback`：**你自己的 `audioDir` 里只要有可用音频，就只用你自己的**；目录不存在或为空时才用自带的。想让两边都出现在下拉里，把它改成 `merge`；想完全关掉自带音频就改成 `off`。
 
@@ -130,4 +132,6 @@ Invoke-WebRequest 'http://127.0.0.1:19387/api/dsh-audio-reward/events?since=0' |
 
 ## 许可
 
-MIT。
+**代码**（`index.js` / `client.js` / `scripts/` / 文档）MIT，见 [LICENSE](LICENSE)。
+
+`audio/ciallo.mp3` 与 `audio/aikun.mp3` 是第三方音频素材，**不在 MIT 范围内**（详见[自带音频](#自带音频装完即用)一节）；`audio/chime.wav` 由本仓库脚本生成，随 MIT 一并授权。
